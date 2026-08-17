@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "412329483794",
+    "project_id": "stackflow-b3cbf",
+    "storage_bucket": "stackflow-b3cbf.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:412329483794:android:90d4cbceeb2f0f9a09c2cb",
+        "android_client_info": {
+          "package_name": "com.stackflow.stackflow"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAsSDpI8UT5xblOndiK7CuAe7L9SuwMFMk"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
