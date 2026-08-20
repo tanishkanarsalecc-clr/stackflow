@@ -57,7 +57,6 @@ class DefaultFirebaseOptions {
     projectId: 'stackflow-b3cbf',
     storageBucket: 'stackflow-b3cbf.firebasestorage.app',
   );
-
   static const FirebaseOptions ios = FirebaseOptions(
     apiKey: 'AIzaSyCRaght4xX7L1hjOoQFvAfKkSKDljt6vNQ',
     appId: '1:412329483794:ios:ec984bf26a6cc91909c2cb',
@@ -66,7 +65,6 @@ class DefaultFirebaseOptions {
     storageBucket: 'stackflow-b3cbf.firebasestorage.app',
     iosBundleId: 'com.stackflow.stackflow',
   );
-
   static const FirebaseOptions macos = FirebaseOptions(
     apiKey: 'AIzaSyCRaght4xX7L1hjOoQFvAfKkSKDljt6vNQ',
     appId: '1:412329483794:ios:ec984bf26a6cc91909c2cb',

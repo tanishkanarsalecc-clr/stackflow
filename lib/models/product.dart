@@ -1,22 +1,22 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
-
 class Product {
   final String id;
-  final String userId;
   final String name;
   final String category;
-  final double price;
-  final int quantity;
-  final DateTime createdAt;
+  final double sellingPrice;
+  final double costPrice;
+  final int stock;
+  final int lowStockAlert;
+  final String imageUrl;
 
   Product({
     required this.id,
-    required this.userId,
     required this.name,
     required this.category,
-    required this.price,
-    required this.quantity,
-    required this.createdAt,
+    required this.sellingPrice,
+    required this.costPrice,
+    required this.stock,
+    required this.lowStockAlert,
+    this.imageUrl = '',
   });
 
   factory Product.fromMap(
@@ -25,25 +25,28 @@ class Product {
       ) {
     return Product(
       id: id,
-      userId: map['userId'] ?? '',
       name: map['name'] ?? '',
       category: map['category'] ?? '',
-      price: (map['price'] as num?)?.toDouble() ?? 0,
-      quantity: (map['quantity'] as num?)?.toInt() ?? 0,
-      createdAt:
-      (map['createdAt'] as Timestamp?)?.toDate() ??
-          DateTime.now(),
+      sellingPrice:
+      (map['sellingPrice'] ?? 0).toDouble(),
+      costPrice:
+      (map['costPrice'] ?? 0).toDouble(),
+      stock: (map['stock'] ?? 0).toInt(),
+      lowStockAlert:
+      (map['lowStockAlert'] ?? 10).toInt(),
+      imageUrl: map['imageUrl'] ?? '',
     );
   }
 
   Map<String, dynamic> toMap() {
     return {
-      'userId': userId,
       'name': name,
       'category': category,
-      'price': price,
-      'quantity': quantity,
-      'createdAt': Timestamp.fromDate(createdAt),
+      'sellingPrice': sellingPrice,
+      'costPrice': costPrice,
+      'stock': stock,
+      'lowStockAlert': lowStockAlert,
+      'imageUrl': imageUrl,
     };
   }
 }
