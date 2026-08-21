@@ -30,28 +30,39 @@ class _AuthScreenState extends State<AuthScreen> {
   void initState() {
     super.initState();
 
-    _checkExistingUser();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      _checkExistingUser();
+    });
   }
 
   // ============================================================
-  // CHECK EXISTING FIREBASE SESSION
+  // CHECK FIREBASE SESSION
+  // ============================================================
+  //
+  // IMPORTANT:
+  // We intentionally DO NOT navigate to Dashboard here.
+  //
+  // Firebase may remember a previously logged-in user.
+  // However, for this app we want the Login screen to appear
+  // whenever the application starts.
+  //
+  // Login/Register will still navigate to Dashboard normally.
   // ============================================================
 
   Future<void> _checkExistingUser() async {
     try {
-      // Firebase is already initialized in main.dart.
-      // currentUser is enough to check whether a session exists.
+      // Read the current Firebase user only to make sure Firebase
+      // is available. We do not use it for automatic navigation.
       final User? user = FirebaseAuth.instance.currentUser;
 
-      if (!mounted) return;
+      debugPrint(
+        user == null
+            ? 'No Firebase session found.'
+            : 'Firebase session found, but showing Login screen.',
+      );
 
-      if (user != null) {
-        Navigator.pushReplacementNamed(
-          context,
-          AppRoutes.dashboard,
-        );
-        return;
-      }
+      if (!mounted) return;
 
       setState(() {
         checkingSession = false;
@@ -150,16 +161,31 @@ class _AuthScreenState extends State<AuthScreen> {
 
     if (!mounted) return;
 
+    // ------------------------------------------------------------
+    // LOGIN / REGISTER SUCCESS
+    // ------------------------------------------------------------
+
     if (success) {
-      Navigator.pushReplacementNamed(
-        context,
+      Navigator.of(context).pushReplacementNamed(
         AppRoutes.dashboard,
       );
-    } else if (provider.error != null) {
+    }
+
+    // ------------------------------------------------------------
+    // AUTH ERROR
+    // ------------------------------------------------------------
+
+    else if (provider.error != null) {
       _showMessage(
         provider.error!,
       );
-    } else {
+    }
+
+    // ------------------------------------------------------------
+    // UNKNOWN FAILURE
+    // ------------------------------------------------------------
+
+    else {
       _showMessage(
         loginMode
             ? 'Login failed. Please try again.'
@@ -191,6 +217,8 @@ class _AuthScreenState extends State<AuthScreen> {
   // ============================================================
 
   void _toggleMode() {
+    if (!mounted) return;
+
     final app_auth.AuthProvider provider =
     context.read<app_auth.AuthProvider>();
 
@@ -378,7 +406,8 @@ class _AuthScreenState extends State<AuthScreen> {
                         textAlign: TextAlign.center,
                         style: const TextStyle(
                           fontSize: 12,
-                          color: StackFlowColors.secondaryText,
+                          color:
+                          StackFlowColors.secondaryText,
                         ),
                       ),
 
@@ -393,7 +422,8 @@ class _AuthScreenState extends State<AuthScreen> {
                         hint: 'Enter email',
                         label: 'Email',
                         prefixIcon: Icons.email_outlined,
-                        keyboardType: TextInputType.emailAddress,
+                        keyboardType:
+                        TextInputType.emailAddress,
                       ),
 
                       const SizedBox(height: 14),
@@ -412,10 +442,15 @@ class _AuthScreenState extends State<AuthScreen> {
                             obscureText: obscurePassword,
                           ),
 
+                          // =================================================
+                          // PASSWORD EYE
+                          // Slightly lower and centered vertically.
+                          // =================================================
+
                           Positioned(
                             right: 7,
-                            top: 7,
-                            bottom: 7,
+                            top: 11,
+                            bottom: 3,
                             child: IconButton(
                               tooltip: obscurePassword
                                   ? 'Show password'
@@ -423,6 +458,8 @@ class _AuthScreenState extends State<AuthScreen> {
                               onPressed: auth.loading
                                   ? null
                                   : () {
+                                if (!mounted) return;
+
                                 setState(() {
                                   obscurePassword =
                                   !obscurePassword;
@@ -432,8 +469,8 @@ class _AuthScreenState extends State<AuthScreen> {
                                 obscurePassword
                                     ? Icons.visibility_outlined
                                     : Icons.visibility_off_outlined,
-                                color:
-                                StackFlowColors.secondaryText,
+                                color: StackFlowColors
+                                    .secondaryText,
                               ),
                             ),
                           ),
@@ -483,7 +520,8 @@ class _AuthScreenState extends State<AuthScreen> {
                 // =================================================
 
                 Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
+                  mainAxisAlignment:
+                  MainAxisAlignment.center,
                   children: [
                     Icon(
                       Icons.lock_outline,

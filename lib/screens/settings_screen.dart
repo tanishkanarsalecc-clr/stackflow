@@ -3,7 +3,9 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 
+import '../core/routes.dart';
 import '../core/theme.dart';
+import '../services/auth_service.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -18,6 +20,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
   bool notificationsEnabled = true;
   bool automaticBackupEnabled = true;
 
+  bool _isLoggingOut = false;
+
+  // ============================================================
+  // PROFILE IMAGE
+  // ============================================================
+
   Future<void> _pickProfileImage(ImageSource source) async {
     try {
       final picker = ImagePicker();
@@ -29,6 +37,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
       );
 
       if (image == null) return;
+
+      if (!mounted) return;
 
       setState(() {
         _profileImage = File(image.path);
@@ -43,6 +53,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
       );
     }
   }
+
+  // ============================================================
+  // PROFILE PICTURE OPTIONS
+  // ============================================================
 
   void _showProfilePictureOptions() {
     showModalBottomSheet(
@@ -123,6 +137,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       onPressed: () {
                         Navigator.pop(context);
 
+                        if (!mounted) return;
+
                         setState(() {
                           _profileImage = null;
                         });
@@ -148,6 +164,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
+  // ============================================================
+  // OPEN PROFILE
+  // ============================================================
+
   void _openProfile() {
     Navigator.push(
       context,
@@ -155,6 +175,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
         builder: (_) => ProfileScreen(
           profileImage: _profileImage,
           onImageChanged: (image) {
+            if (!mounted) return;
+
             setState(() {
               _profileImage = image;
             });
@@ -163,6 +185,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
       ),
     );
   }
+
+  // ============================================================
+  // OPEN BUSINESS INFORMATION
+  // ============================================================
 
   void _openBusinessInformation() {
     Navigator.push(
@@ -173,6 +199,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
+  // ============================================================
+  // OPEN NOTIFICATIONS
+  // ============================================================
+
   void _openNotifications() {
     Navigator.push(
       context,
@@ -180,6 +210,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
         builder: (_) => NotificationSettingsScreen(
           enabled: notificationsEnabled,
           onChanged: (value) {
+            if (!mounted) return;
+
             setState(() {
               notificationsEnabled = value;
             });
@@ -189,6 +221,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
+  // ============================================================
+  // OPEN BACKUP
+  // ============================================================
+
   void _openBackup() {
     Navigator.push(
       context,
@@ -196,6 +232,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
         builder: (_) => BackupDataScreen(
           automaticBackupEnabled: automaticBackupEnabled,
           onChanged: (value) {
+            if (!mounted) return;
+
             setState(() {
               automaticBackupEnabled = value;
             });
@@ -204,6 +242,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
       ),
     );
   }
+
+  // ============================================================
+  // OPEN HELP & SUPPORT
+  // ============================================================
 
   void _openHelpSupport() {
     Navigator.push(
@@ -214,6 +256,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
+  // ============================================================
+  // OPEN ABOUT
+  // ============================================================
+
   void _openAbout() {
     Navigator.push(
       context,
@@ -222,6 +268,121 @@ class _SettingsScreenState extends State<SettingsScreen> {
       ),
     );
   }
+
+  // ============================================================
+  // LOG OUT
+  // ============================================================
+
+  Future<void> _logout() async {
+    if (_isLoggingOut) return;
+
+    final bool? confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) {
+        return AlertDialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+          ),
+          title: const Row(
+            children: [
+              Icon(
+                Icons.logout_rounded,
+                color: Colors.redAccent,
+              ),
+              SizedBox(width: 10),
+              Text(
+                'Log Out',
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ],
+          ),
+          content: const Text(
+            'Are you sure you want to log out of your StackFlow account?',
+            style: TextStyle(
+              fontSize: 13,
+              height: 1.4,
+              color: StackFlowColors.secondaryText,
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.pop(dialogContext, false);
+              },
+              child: const Text(
+                'Cancel',
+              ),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.pop(dialogContext, true);
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.redAccent,
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10),
+                ),
+              ),
+              child: const Text(
+                'Log Out',
+              ),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (confirmed != true) return;
+
+    if (!mounted) return;
+
+    setState(() {
+      _isLoggingOut = true;
+    });
+
+    try {
+      final AuthService authService = AuthService();
+
+      await authService.logout();
+
+      if (!mounted) return;
+
+      // Remove all previous screens so the user cannot
+      // press Back and return to the dashboard.
+      Navigator.of(context).pushNamedAndRemoveUntil(
+        AppRoutes.auth,
+            (route) => false,
+      );
+    } catch (e, stackTrace) {
+      debugPrint('Logout error: $e');
+      debugPrintStack(stackTrace: stackTrace);
+
+      if (!mounted) return;
+
+      setState(() {
+        _isLoggingOut = false;
+      });
+
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Unable to log out. Please try again.',
+            ),
+            behavior: SnackBarBehavior.floating,
+            margin: EdgeInsets.all(16),
+          ),
+        );
+    }
+  }
+
+  // ============================================================
+  // BUILD
+  // ============================================================
 
   @override
   Widget build(BuildContext context) {
@@ -240,6 +401,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
       body: ListView(
         padding: const EdgeInsets.fromLTRB(16, 8, 16, 30),
         children: [
+          // ========================================================
+          // PROFILE HEADER
+          // ========================================================
+
           _ProfileHeader(
             image: _profileImage,
             onTap: _openProfile,
@@ -247,6 +412,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ),
 
           const SizedBox(height: 22),
+
+          // ========================================================
+          // ACCOUNT
+          // ========================================================
 
           const _SectionTitle(
             title: 'Account',
@@ -275,6 +444,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ),
 
           const SizedBox(height: 22),
+
+          // ========================================================
+          // PREFERENCES
+          // ========================================================
 
           const _SectionTitle(
             title: 'Preferences',
@@ -306,6 +479,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
           const SizedBox(height: 22),
 
+          // ========================================================
+          // DATA & SUPPORT
+          // ========================================================
+
           const _SectionTitle(
             title: 'Data & Support',
           ),
@@ -336,6 +513,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
           const SizedBox(height: 22),
 
+          // ========================================================
+          // ABOUT
+          // ========================================================
+
           const _SectionTitle(
             title: 'About',
           ),
@@ -354,7 +535,49 @@ class _SettingsScreenState extends State<SettingsScreen> {
             ],
           ),
 
+          const SizedBox(height: 22),
+
+          // ========================================================
+          // LOG OUT
+          // ========================================================
+
+          const _SectionTitle(
+            title: 'Account',
+          ),
+
+          const SizedBox(height: 8),
+
+          _SettingsCard(
+            children: [
+              _SettingsTile(
+                icon: Icons.logout_rounded,
+                iconColor: Colors.redAccent,
+                title: 'Log Out',
+                subtitle: 'Sign out of your StackFlow account',
+                trailing: _isLoggingOut
+                    ? const SizedBox(
+                  width: 22,
+                  height: 22,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2.5,
+                    color: Colors.redAccent,
+                  ),
+                )
+                    : const Icon(
+                  Icons.chevron_right,
+                  size: 20,
+                  color: Colors.redAccent,
+                ),
+                onTap: _isLoggingOut ? () {} : _logout,
+              ),
+            ],
+          ),
+
           const SizedBox(height: 28),
+
+          // ========================================================
+          // APP INFORMATION
+          // ========================================================
 
           Center(
             child: Column(
@@ -409,9 +632,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 }
 
-// ============================================================
+// ================================================================
 // PROFILE HEADER
-// ============================================================
+// ================================================================
 
 class _ProfileHeader extends StatelessWidget {
   final File? image;
@@ -538,9 +761,9 @@ class _ProfileHeader extends StatelessWidget {
   }
 }
 
-// ============================================================
+// ================================================================
 // PROFILE SCREEN
-// ============================================================
+// ================================================================
 
 class ProfileScreen extends StatefulWidget {
   final File? profileImage;
@@ -582,6 +805,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
     super.dispose();
   }
 
+  // ============================================================
+  // PICK PROFILE IMAGE
+  // ============================================================
+
   Future<void> _pickImage(ImageSource source) async {
     try {
       final picker = ImagePicker();
@@ -595,6 +822,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
       if (image == null) return;
 
       final file = File(image.path);
+
+      if (!mounted) return;
 
       setState(() {
         profileImage = file;
@@ -611,6 +840,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
       );
     }
   }
+
+  // ============================================================
+  // IMAGE PICKER
+  // ============================================================
 
   void _showImagePicker() {
     showModalBottomSheet(
@@ -669,6 +902,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     onPressed: () {
                       Navigator.pop(context);
 
+                      if (!mounted) return;
+
                       setState(() {
                         profileImage = null;
                       });
@@ -694,15 +929,25 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
+  // ============================================================
+  // SAVE PROFILE
+  // ============================================================
+
   void _saveProfile() {
     FocusScope.of(context).unfocus();
 
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
-        content: Text('Profile updated successfully.'),
+        content: Text(
+          'Profile updated successfully.',
+        ),
       ),
     );
   }
+
+  // ============================================================
+  // BUILD
+  // ============================================================
 
   @override
   Widget build(BuildContext context) {
@@ -711,7 +956,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
       appBar: AppBar(
         title: const Text(
           'My Profile',
-          style: TextStyle(fontWeight: FontWeight.bold),
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+          ),
         ),
       ),
       body: ListView(
@@ -813,9 +1060,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 }
 
-// ============================================================
+// ================================================================
 // BUSINESS INFORMATION
-// ============================================================
+// ================================================================
 
 class BusinessInformationScreen extends StatefulWidget {
   const BusinessInformationScreen({super.key});
@@ -857,7 +1104,9 @@ class _BusinessInformationScreenState
 
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
-        content: Text('Business information saved.'),
+        content: Text(
+          'Business information saved.',
+        ),
       ),
     );
   }
@@ -869,7 +1118,9 @@ class _BusinessInformationScreenState
       appBar: AppBar(
         title: const Text(
           'Business Information',
-          style: TextStyle(fontWeight: FontWeight.bold),
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+          ),
         ),
       ),
       body: ListView(
@@ -935,9 +1186,9 @@ class _BusinessInformationScreenState
   }
 }
 
-// ============================================================
+// ================================================================
 // NOTIFICATIONS
-// ============================================================
+// ================================================================
 
 class NotificationSettingsScreen extends StatefulWidget {
   final bool enabled;
@@ -957,6 +1208,7 @@ class NotificationSettingsScreen extends StatefulWidget {
 class _NotificationSettingsScreenState
     extends State<NotificationSettingsScreen> {
   late bool enabled;
+
   bool salesAlerts = true;
   bool lowStockAlerts = true;
   bool businessUpdates = true;
@@ -982,7 +1234,9 @@ class _NotificationSettingsScreenState
       appBar: AppBar(
         title: const Text(
           'Notifications',
-          style: TextStyle(fontWeight: FontWeight.bold),
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+          ),
         ),
       ),
       body: ListView(
@@ -998,14 +1252,17 @@ class _NotificationSettingsScreenState
             ),
           ),
           const SizedBox(height: 18),
-          const _SectionTitle(title: 'Notification types'),
+          const _SectionTitle(
+            title: 'Notification types',
+          ),
           const SizedBox(height: 8),
           _SettingsCard(
             children: [
               _SwitchTile(
                 icon: Icons.point_of_sale_outlined,
                 title: 'Sales alerts',
-                subtitle: 'Get notified when a sale is completed',
+                subtitle:
+                'Get notified when a sale is completed',
                 value: salesAlerts && enabled,
                 onChanged: enabled
                     ? (value) {
@@ -1019,7 +1276,8 @@ class _NotificationSettingsScreenState
               _SwitchTile(
                 icon: Icons.warning_amber_outlined,
                 title: 'Low stock alerts',
-                subtitle: 'Know when products need restocking',
+                subtitle:
+                'Know when products need restocking',
                 value: lowStockAlerts && enabled,
                 onChanged: enabled
                     ? (value) {
@@ -1033,7 +1291,8 @@ class _NotificationSettingsScreenState
               _SwitchTile(
                 icon: Icons.campaign_outlined,
                 title: 'Business updates',
-                subtitle: 'Important StackFlow updates',
+                subtitle:
+                'Important StackFlow updates',
                 value: businessUpdates && enabled,
                 onChanged: enabled
                     ? (value) {
@@ -1051,9 +1310,9 @@ class _NotificationSettingsScreenState
   }
 }
 
-// ============================================================
+// ================================================================
 // BACKUP & DATA
-// ============================================================
+// ================================================================
 
 class BackupDataScreen extends StatefulWidget {
   final bool automaticBackupEnabled;
@@ -1066,7 +1325,8 @@ class BackupDataScreen extends StatefulWidget {
   });
 
   @override
-  State<BackupDataScreen> createState() => _BackupDataScreenState();
+  State<BackupDataScreen> createState() =>
+      _BackupDataScreenState();
 }
 
 class _BackupDataScreenState extends State<BackupDataScreen> {
@@ -1121,7 +1381,9 @@ class _BackupDataScreenState extends State<BackupDataScreen> {
       appBar: AppBar(
         title: const Text(
           'Backup & Data',
-          style: TextStyle(fontWeight: FontWeight.bold),
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+          ),
         ),
       ),
       body: ListView(
@@ -1158,9 +1420,9 @@ class _BackupDataScreenState extends State<BackupDataScreen> {
   }
 }
 
-// ============================================================
+// ================================================================
 // HELP & SUPPORT
-// ============================================================
+// ================================================================
 
 class HelpSupportScreen extends StatelessWidget {
   const HelpSupportScreen({super.key});
@@ -1246,7 +1508,9 @@ class HelpSupportScreen extends StatelessWidget {
       appBar: AppBar(
         title: const Text(
           'Help & Support',
-          style: TextStyle(fontWeight: FontWeight.bold),
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+          ),
         ),
       ),
       body: ListView(
@@ -1291,14 +1555,13 @@ class HelpSupportScreen extends StatelessWidget {
               ],
             ),
           ),
-
           const SizedBox(height: 22),
-
           _SupportActionCard(
             icon: Icons.support_agent_outlined,
             iconColor: StackFlowColors.primary,
             title: 'Contact Support',
-            subtitle: 'Get help from the StackFlow support team',
+            subtitle:
+            'Get help from the StackFlow support team',
             buttonText: 'Contact us',
             onTap: () {
               _showContactSupport(context);
@@ -1310,9 +1573,9 @@ class HelpSupportScreen extends StatelessWidget {
   }
 }
 
-// ============================================================
+// ================================================================
 // ABOUT STACKFLOW
-// ============================================================
+// ================================================================
 
 class AboutStackFlowScreen extends StatelessWidget {
   const AboutStackFlowScreen({super.key});
@@ -1324,7 +1587,9 @@ class AboutStackFlowScreen extends StatelessWidget {
       appBar: AppBar(
         title: const Text(
           'About StackFlow',
-          style: TextStyle(fontWeight: FontWeight.bold),
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+          ),
         ),
       ),
       body: ListView(
@@ -1411,9 +1676,7 @@ class AboutStackFlowScreen extends StatelessWidget {
               ],
             ),
           ),
-
           const SizedBox(height: 22),
-
           const Text(
             'Everything your business needs',
             style: TextStyle(
@@ -1422,9 +1685,7 @@ class AboutStackFlowScreen extends StatelessWidget {
               color: StackFlowColors.text,
             ),
           ),
-
           const SizedBox(height: 7),
-
           const Text(
             'StackFlow is designed to make everyday business management simple, organized and efficient.',
             style: TextStyle(
@@ -1433,9 +1694,7 @@ class AboutStackFlowScreen extends StatelessWidget {
               color: StackFlowColors.secondaryText,
             ),
           ),
-
           const SizedBox(height: 20),
-
           Row(
             children: [
               Expanded(
@@ -1455,9 +1714,7 @@ class AboutStackFlowScreen extends StatelessWidget {
               ),
             ],
           ),
-
           const SizedBox(height: 10),
-
           Row(
             children: [
               Expanded(
@@ -1477,9 +1734,7 @@ class AboutStackFlowScreen extends StatelessWidget {
               ),
             ],
           ),
-
           const SizedBox(height: 22),
-
           Container(
             padding: const EdgeInsets.all(18),
             decoration: BoxDecoration(
@@ -1514,9 +1769,7 @@ class AboutStackFlowScreen extends StatelessWidget {
               ],
             ),
           ),
-
           const SizedBox(height: 24),
-
           Center(
             child: Column(
               children: [
@@ -1544,9 +1797,9 @@ class AboutStackFlowScreen extends StatelessWidget {
   }
 }
 
-// ============================================================
+// ================================================================
 // REUSABLE WIDGETS
-// ============================================================
+// ================================================================
 
 class _SectionTitle extends StatelessWidget {
   final String title;
@@ -2102,7 +2355,9 @@ class _BackupHero extends StatelessWidget {
                 Icons.cloud_upload_outlined,
               ),
               label: Text(
-                isBackingUp ? 'Backing up...' : 'Backup Now',
+                isBackingUp
+                    ? 'Backing up...'
+                    : 'Backup Now',
               ),
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.white,

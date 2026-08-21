@@ -28,14 +28,13 @@ class _BillScreenState extends State<BillScreen> {
     super.dispose();
   }
 
-  void updateDiscount(CartProvider cart, String value) {
+  void updateDiscount(
+      CartProvider cart,
+      String value,
+      ) {
     final discount = double.tryParse(value) ?? 0;
     cart.setDiscount(discount);
   }
-
-  // =============================================================
-  // CLEAR BILL
-  // =============================================================
 
   Future<void> clearBill() async {
     final cart = context.read<CartProvider>();
@@ -54,11 +53,15 @@ class _BillScreenState extends State<BillScreen> {
           ),
           actions: [
             TextButton(
-              onPressed: () => Navigator.pop(context, false),
+              onPressed: () {
+                Navigator.pop(context, false);
+              },
               child: const Text('Cancel'),
             ),
             FilledButton(
-              onPressed: () => Navigator.pop(context, true),
+              onPressed: () {
+                Navigator.pop(context, true);
+              },
               style: FilledButton.styleFrom(
                 backgroundColor: StackFlowColors.red,
               ),
@@ -75,9 +78,18 @@ class _BillScreenState extends State<BillScreen> {
     discountController.clear();
   }
 
-  // =============================================================
-  // SAVE BILL
-  // =============================================================
+  void saveDraft() {
+    final cart = context.read<CartProvider>();
+
+    if (cart.items.isEmpty) {
+      _message('Add at least one product before saving.');
+      return;
+    }
+
+    _message(
+      'Bill saved. You can continue editing or bill & pay when ready.',
+    );
+  }
 
   Future<void> saveBill() async {
     final cart = context.read<CartProvider>();
@@ -102,10 +114,13 @@ class _BillScreenState extends State<BillScreen> {
         };
       }).toList();
 
-      // Save total BEFORE clearing cart.
+      // IMPORTANT:
+      // Save the total BEFORE cart.clear()
+      // because cart.clear() resets the cart values.
       final finalTotal = cart.total;
 
-      final invoiceNumber = await FirebaseService.createInvoice(
+      final invoiceNumber =
+      await FirebaseService.createInvoice(
         items: items,
         subtotal: cart.subtotal,
         discount: cart.discount,
@@ -113,7 +128,7 @@ class _BillScreenState extends State<BillScreen> {
         total: finalTotal,
       );
 
-      // Clear only after successful invoice creation.
+      // Clear only after invoice has been created successfully.
       cart.clear();
       discountController.clear();
 
@@ -133,7 +148,8 @@ class _BillScreenState extends State<BillScreen> {
                   width: 38,
                   height: 38,
                   decoration: BoxDecoration(
-                    color: StackFlowColors.green.withValues(alpha: 0.12),
+                    color: StackFlowColors.green
+                        .withValues(alpha: 0.12),
                     shape: BoxShape.circle,
                   ),
                   child: const Icon(
@@ -142,7 +158,9 @@ class _BillScreenState extends State<BillScreen> {
                   ),
                 ),
                 const SizedBox(width: 12),
-                const Text('Bill Saved'),
+                const Expanded(
+                  child: Text('Bill Saved'),
+                ),
               ],
             ),
             content: Text(
@@ -175,10 +193,6 @@ class _BillScreenState extends State<BillScreen> {
       );
     }
   }
-
-  // =============================================================
-  // MESSAGE
-  // =============================================================
 
   void _message(String message) {
     ScaffoldMessenger.of(context)
@@ -225,9 +239,8 @@ class _BillScreenState extends State<BillScreen> {
             ),
           ],
         ),
-
-        // DELETE / CLEAR OPTION REMAINS AT TOP
         actions: [
+          // DELETE / CLEAR ONLY IN TOP BAR
           IconButton(
             tooltip: 'Clear bill',
             onPressed: clearBill,
@@ -238,13 +251,8 @@ class _BillScreenState extends State<BillScreen> {
           const SizedBox(width: 4),
         ],
       ),
-
       body: Column(
         children: [
-          // =======================================================
-          // SEARCH
-          // =======================================================
-
           _SearchField(
             controller: searchController,
             onChanged: products.setSearch,
@@ -254,10 +262,6 @@ class _BillScreenState extends State<BillScreen> {
               setState(() {});
             },
           ),
-
-          // =======================================================
-          // PRODUCTS / BILL ITEMS
-          // =======================================================
 
           Expanded(
             child: StreamBuilder<List<Product>>(
@@ -274,11 +278,13 @@ class _BillScreenState extends State<BillScreen> {
                   return const _MessageState(
                     icon: Icons.error_outline_rounded,
                     title: 'Unable to load products',
-                    subtitle: 'Please try again in a moment.',
+                    subtitle:
+                    'Please try again in a moment.',
                   );
                 }
 
-                final filtered = products.filterProducts(
+                final filtered =
+                products.filterProducts(
                   snapshot.data ?? [],
                 );
 
@@ -292,11 +298,11 @@ class _BillScreenState extends State<BillScreen> {
                     20,
                   ),
                   children: [
-                    // SEARCH RESULTS
                     if (products.search.isNotEmpty) ...[
                       _SectionHeader(
                         title: 'Products',
-                        trailing: '${filtered.length} found',
+                        trailing:
+                        '${filtered.length} found',
                       ),
                       const SizedBox(height: 8),
 
@@ -315,23 +321,23 @@ class _BillScreenState extends State<BillScreen> {
                         ),
                     ],
 
-                    // EMPTY BILL
                     if (products.search.isEmpty &&
                         cart.items.isEmpty)
                       const _MessageState(
-                        icon: Icons.receipt_long_outlined,
+                        icon:
+                        Icons.receipt_long_outlined,
                         title: 'Start a new bill',
                         subtitle:
                         'Search for a product above to add it to the bill.',
                       ),
 
-                    // BILL ITEMS
                     if (cart.items.isNotEmpty) ...[
                       const SizedBox(height: 8),
 
                       _SectionHeader(
                         title: 'Bill Items',
-                        trailing: '${cart.items.length} items',
+                        trailing:
+                        '${cart.items.length} items',
                       ),
 
                       const SizedBox(height: 8),
@@ -349,17 +355,18 @@ class _BillScreenState extends State<BillScreen> {
             ),
           ),
 
-          // =======================================================
-          // BILL SUMMARY
-          // =======================================================
-
           _BillSummary(
             saving: saving,
-            discountController: discountController,
+            discountController:
+            discountController,
             onDiscountChanged: (value) {
-              updateDiscount(cart, value);
+              updateDiscount(
+                cart,
+                value,
+              );
             },
-            onSave: saveBill,
+            onSave: saveDraft,
+            onBillPay: saveBill,
           ),
         ],
       ),
@@ -500,9 +507,8 @@ class _MessageState extends StatelessWidget {
             width: 52,
             height: 52,
             decoration: BoxDecoration(
-              color: StackFlowColors.primary.withValues(
-                alpha: 0.09,
-              ),
+              color: StackFlowColors.primary
+                  .withValues(alpha: 0.09),
               shape: BoxShape.circle,
             ),
             child: Icon(
@@ -553,9 +559,7 @@ class _SearchProduct extends StatelessWidget {
 
     final lowStock =
         product.stock <= product.lowStockAlert;
-
-    final outOfStock =
-        product.stock <= 0;
+    final outOfStock = product.stock <= 0;
 
     return Material(
       color: Colors.transparent,
@@ -600,7 +604,9 @@ class _SearchProduct extends StatelessWidget {
                         color: StackFlowColors.text,
                       ),
                     ),
+
                     const SizedBox(height: 4),
+
                     Text(
                       product.category,
                       maxLines: 1,
@@ -612,7 +618,9 @@ class _SearchProduct extends StatelessWidget {
                         fontSize: 10,
                       ),
                     ),
+
                     const SizedBox(height: 5),
+
                     Text(
                       formatCurrency(
                         product.sellingPrice,
@@ -620,7 +628,8 @@ class _SearchProduct extends StatelessWidget {
                       style: const TextStyle(
                         fontWeight: FontWeight.bold,
                         fontSize: 12,
-                        color: StackFlowColors.primary,
+                        color:
+                        StackFlowColors.primary,
                       ),
                     ),
                   ],
@@ -645,9 +654,13 @@ class _SearchProduct extends StatelessWidget {
                           .withValues(alpha: 0.08)
                           : lowStock
                           ? StackFlowColors.orange
-                          .withValues(alpha: 0.10)
+                          .withValues(
+                        alpha: 0.10,
+                      )
                           : StackFlowColors.green
-                          .withValues(alpha: 0.09),
+                          .withValues(
+                        alpha: 0.09,
+                      ),
                       borderRadius:
                       BorderRadius.circular(7),
                     ),
@@ -669,7 +682,9 @@ class _SearchProduct extends StatelessWidget {
                       ),
                     ),
                   ),
+
                   const SizedBox(height: 7),
+
                   Icon(
                     outOfStock
                         ? Icons.block_rounded
@@ -707,8 +722,7 @@ class _ProductImage extends StatelessWidget {
       height: 50,
       decoration: BoxDecoration(
         color: const Color(0xFFF1F6F8),
-        borderRadius:
-        BorderRadius.circular(11),
+        borderRadius: BorderRadius.circular(11),
       ),
       child: product.imageUrl.isEmpty
           ? const Icon(
@@ -721,8 +735,7 @@ class _ProductImage extends StatelessWidget {
         child: Image.network(
           product.imageUrl,
           fit: BoxFit.cover,
-          errorBuilder:
-              (_, __, ___) {
+          errorBuilder: (_, __, ___) {
             return const Icon(
               Icons.inventory_2_outlined,
               color:
@@ -757,8 +770,7 @@ class _CartProduct extends StatelessWidget {
       padding: const EdgeInsets.all(11),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius:
-        BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(14),
         border: Border.all(
           color: StackFlowColors.primary
               .withValues(alpha: 0.20),
@@ -800,7 +812,9 @@ class _CartProduct extends StatelessWidget {
                     color: StackFlowColors.text,
                   ),
                 ),
+
                 const SizedBox(height: 4),
+
                 Text(
                   '${formatCurrency(product.sellingPrice)} each',
                   style: const TextStyle(
@@ -833,6 +847,7 @@ class _CartProduct extends StatelessWidget {
                     cart.decrease(product);
                   },
                 ),
+
                 SizedBox(
                   width: 27,
                   child: Text(
@@ -844,6 +859,7 @@ class _CartProduct extends StatelessWidget {
                     ),
                   ),
                 ),
+
                 _QuantityButton(
                   icon: Icons.add_rounded,
                   onPressed: () {
@@ -896,8 +912,7 @@ class _QuantityButton extends StatelessWidget {
   Widget build(BuildContext context) {
     return InkWell(
       onTap: onPressed,
-      borderRadius:
-      BorderRadius.circular(8),
+      borderRadius: BorderRadius.circular(8),
       child: SizedBox(
         width: 32,
         height: 32,
@@ -922,12 +937,14 @@ class _BillSummary extends StatelessWidget {
   final TextEditingController discountController;
   final ValueChanged<String> onDiscountChanged;
   final VoidCallback onSave;
+  final VoidCallback onBillPay;
 
   const _BillSummary({
     required this.saving,
     required this.discountController,
     required this.onDiscountChanged,
     required this.onSave,
+    required this.onBillPay,
   });
 
   @override
@@ -960,10 +977,7 @@ class _BillSummary extends StatelessWidget {
       ),
       child: Column(
         children: [
-          // =====================================================
           // SUBTOTAL
-          // =====================================================
-
           Row(
             children: [
               const Expanded(
@@ -988,10 +1002,7 @@ class _BillSummary extends StatelessWidget {
 
           const SizedBox(height: 8),
 
-          // =====================================================
           // DISCOUNT
-          // =====================================================
-
           Row(
             children: [
               const Expanded(
@@ -1038,10 +1049,7 @@ class _BillSummary extends StatelessWidget {
 
           const SizedBox(height: 8),
 
-          // =====================================================
           // TAX
-          // =====================================================
-
           Row(
             children: [
               const Expanded(
@@ -1067,13 +1075,12 @@ class _BillSummary extends StatelessWidget {
           const Padding(
             padding:
             EdgeInsets.symmetric(vertical: 8),
-            child: Divider(height: 1),
+            child: Divider(
+              height: 1,
+            ),
           ),
 
-          // =====================================================
           // TOTAL
-          // =====================================================
-
           Row(
             children: [
               const Expanded(
@@ -1104,8 +1111,7 @@ class _BillSummary extends StatelessWidget {
               Text(
                 formatCurrency(cart.total),
                 style: const TextStyle(
-                  color:
-                  StackFlowColors.primary,
+                  color: StackFlowColors.primary,
                   fontWeight: FontWeight.bold,
                   fontSize: 20,
                 ),
@@ -1116,62 +1122,116 @@ class _BillSummary extends StatelessWidget {
           const SizedBox(height: 12),
 
           // =====================================================
-          // SAVE / BILL & PAY
-          //
-          // Delete/Clear button intentionally removed from here.
-          // Clear is available from the top AppBar.
+          // BOTTOM ACTIONS
+          // SAVE | BILL & PAY
           // =====================================================
 
-          SizedBox(
-            width: double.infinity,
-            child: ElevatedButton(
-              onPressed:
-              !hasItems || saving ? null : onSave,
-              style: ElevatedButton.styleFrom(
-                backgroundColor:
-                StackFlowColors.primary,
-                foregroundColor: Colors.white,
-                disabledBackgroundColor:
-                StackFlowColors.primary
-                    .withValues(alpha: 0.35),
-                minimumSize:
-                const Size(double.infinity, 48),
-                elevation: 0,
-                shape:
-                RoundedRectangleBorder(
-                  borderRadius:
-                  BorderRadius.circular(11),
-                ),
-              ),
-              child: saving
-                  ? const SizedBox(
-                width: 20,
-                height: 20,
-                child:
-                CircularProgressIndicator(
-                  strokeWidth: 2,
-                  color: Colors.white,
-                ),
-              )
-                  : const Row(
-                mainAxisAlignment:
-                MainAxisAlignment.center,
-                children: [
-                  Icon(
-                    Icons.check_circle_outline_rounded,
-                    size: 19,
-                  ),
-                  SizedBox(width: 8),
-                  Text(
-                    'Bill & Pay',
-                    style: TextStyle(
-                      fontWeight:
-                      FontWeight.w600,
+          Row(
+            children: [
+              Expanded(
+                flex: 2,
+                child: OutlinedButton(
+                  onPressed:
+                  !hasItems || saving
+                      ? null
+                      : onSave,
+                  style:
+                  OutlinedButton.styleFrom(
+                    minimumSize:
+                    const Size(0, 48),
+                    foregroundColor:
+                    StackFlowColors.primary,
+                    side: BorderSide(
+                      color: hasItems
+                          ? StackFlowColors.primary
+                          : StackFlowColors.border,
+                    ),
+                    shape:
+                    RoundedRectangleBorder(
+                      borderRadius:
+                      BorderRadius.circular(11),
                     ),
                   ),
-                ],
+                  child: const Row(
+                    mainAxisAlignment:
+                    MainAxisAlignment.center,
+                    children: [
+                      Icon(
+                        Icons.save_outlined,
+                        size: 19,
+                      ),
+                      SizedBox(width: 7),
+                      Text(
+                        'Save',
+                        style: TextStyle(
+                          fontWeight:
+                          FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
               ),
-            ),
+
+              const SizedBox(width: 10),
+
+              Expanded(
+                flex: 3,
+                child: ElevatedButton(
+                  onPressed:
+                  !hasItems || saving
+                      ? null
+                      : onBillPay,
+                  style:
+                  ElevatedButton.styleFrom(
+                    backgroundColor:
+                    StackFlowColors.primary,
+                    foregroundColor:
+                    Colors.white,
+                    disabledBackgroundColor:
+                    StackFlowColors.primary
+                        .withValues(alpha: 0.35),
+                    minimumSize:
+                    const Size(0, 48),
+                    elevation: 0,
+                    shape:
+                    RoundedRectangleBorder(
+                      borderRadius:
+                      BorderRadius.circular(11),
+                    ),
+                  ),
+                  child: saving
+                      ? const SizedBox(
+                    width: 20,
+                    height: 20,
+                    child:
+                    CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: Colors.white,
+                    ),
+                  )
+                      : const Row(
+                    mainAxisAlignment:
+                    MainAxisAlignment.center,
+                    children: [
+                      Icon(
+                        Icons
+                            .check_circle_outline_rounded,
+                        size: 19,
+                      ),
+                      SizedBox(width: 8),
+                      Text(
+                        'Bill & Pay',
+                        style: TextStyle(
+                          fontWeight:
+                          FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
           ),
         ],
       ),

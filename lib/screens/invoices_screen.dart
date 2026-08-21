@@ -1,5 +1,10 @@
+import 'dart:typed_data';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import 'package:pdf/pdf.dart';
+import 'package:pdf/widgets.dart' as pw;
+import 'package:printing/printing.dart';
 
 import '../core/helpers.dart';
 import '../core/routes.dart';
@@ -268,10 +273,6 @@ class _InvoiceCard extends StatelessWidget {
             crossAxisAlignment:
             CrossAxisAlignment.start,
             children: [
-              // =================================================
-              // TOP SECTION
-              // =================================================
-
               Row(
                 crossAxisAlignment:
                 CrossAxisAlignment.center,
@@ -343,10 +344,6 @@ class _InvoiceCard extends StatelessWidget {
               const Divider(height: 1),
 
               const SizedBox(height: 11),
-
-              // =================================================
-              // BOTTOM SECTION
-              // =================================================
 
               Row(
                 children: [
@@ -580,13 +577,22 @@ class _InvoiceError extends StatelessWidget {
 // INVOICE DETAILS SCREEN
 // ===============================================================
 
-class InvoiceDetailsScreen extends StatelessWidget {
+class InvoiceDetailsScreen extends StatefulWidget {
   final String invoiceId;
 
   const InvoiceDetailsScreen({
     super.key,
     required this.invoiceId,
   });
+
+  @override
+  State<InvoiceDetailsScreen> createState() =>
+      _InvoiceDetailsScreenState();
+}
+
+class _InvoiceDetailsScreenState
+    extends State<InvoiceDetailsScreen> {
+  bool _pdfBusy = false;
 
   String _formatDate(dynamic value) {
     if (value == null) {
@@ -615,18 +621,641 @@ class InvoiceDetailsScreen extends StatelessWidget {
     }
   }
 
-  void _showPrintMessage(BuildContext context) {
-    ScaffoldMessenger.of(context)
-      ..hideCurrentSnackBar()
-      ..showSnackBar(
-        const SnackBar(
-          behavior: SnackBarBehavior.floating,
-          content: Text(
-            'Print feature will be added next.',
+  // =============================================================
+  // SHOW PDF OPTIONS
+  // =============================================================
+
+  Future<void> _showPdfOptions(
+      BuildContext context,
+      Map<String, dynamic> data,
+      ) async {
+    if (_pdfBusy) {
+      return;
+    }
+
+    final invoiceNumber =
+    (data['invoiceNumber'] ?? 'invoice').toString();
+
+    final action = await showModalBottomSheet<String>(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(
+          top: Radius.circular(20),
+        ),
+      ),
+      builder: (sheetContext) {
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(
+              20,
+              12,
+              20,
+              20,
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  width: 42,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: Colors.black12,
+                    borderRadius:
+                    BorderRadius.circular(10),
+                  ),
+                ),
+
+                const SizedBox(height: 18),
+
+                const Text(
+                  'Invoice PDF',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+
+                const SizedBox(height: 5),
+
+                Text(
+                  invoiceNumber,
+                  style: const TextStyle(
+                    color:
+                    StackFlowColors.secondaryText,
+                    fontSize: 12,
+                  ),
+                ),
+
+                const SizedBox(height: 18),
+
+                ListTile(
+                  leading: Container(
+                    width: 42,
+                    height: 42,
+                    decoration: BoxDecoration(
+                      color: StackFlowColors.primary
+                          .withValues(alpha: 0.10),
+                      borderRadius:
+                      BorderRadius.circular(11),
+                    ),
+                    child: const Icon(
+                      Icons.print_outlined,
+                      color:
+                      StackFlowColors.primary,
+                    ),
+                  ),
+                  title: const Text(
+                    'Print / Save as PDF',
+                    style: TextStyle(
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  subtitle: const Text(
+                    'Open the system print screen',
+                  ),
+                  onTap: () {
+                    Navigator.pop(
+                      sheetContext,
+                      'print',
+                    );
+                  },
+                ),
+
+                const SizedBox(height: 5),
+
+                ListTile(
+                  leading: Container(
+                    width: 42,
+                    height: 42,
+                    decoration: BoxDecoration(
+                      color: StackFlowColors.green
+                          .withValues(alpha: 0.10),
+                      borderRadius:
+                      BorderRadius.circular(11),
+                    ),
+                    child: const Icon(
+                      Icons.share_outlined,
+                      color:
+                      StackFlowColors.green,
+                    ),
+                  ),
+                  title: const Text(
+                    'Share PDF',
+                    style: TextStyle(
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  subtitle: const Text(
+                    'Save or send the invoice file',
+                  ),
+                  onTap: () {
+                    Navigator.pop(
+                      sheetContext,
+                      'share',
+                    );
+                  },
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+
+    if (!mounted || action == null) {
+      return;
+    }
+
+    setState(() {
+      _pdfBusy = true;
+    });
+
+    try {
+      final bytes = await _generateInvoicePdf(
+        data,
+        PdfPageFormat.a4,
+      );
+
+      final safeFileName =
+      invoiceNumber
+          .replaceAll(RegExp(r'[^a-zA-Z0-9_-]'), '_');
+
+      if (action == 'print') {
+        await Printing.layoutPdf(
+          name: '$safeFileName.pdf',
+          onLayout: (format) {
+            return _generateInvoicePdf(
+              data,
+              format,
+            );
+          },
+        );
+      } else {
+        await Printing.sharePdf(
+          bytes: bytes,
+          filename: '$safeFileName.pdf',
+        );
+      }
+    } catch (e, stackTrace) {
+      debugPrint('Invoice PDF error: $e');
+      debugPrintStack(stackTrace: stackTrace);
+
+      if (!mounted) {
+        return;
+      }
+
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(
+          SnackBar(
+            behavior: SnackBarBehavior.floating,
+            content: Text(
+              'Could not create invoice PDF: $e',
+            ),
+          ),
+        );
+    } finally {
+      if (mounted) {
+        setState(() {
+          _pdfBusy = false;
+        });
+      }
+    }
+  }
+
+  // =============================================================
+  // GENERATE PDF
+  // =============================================================
+
+  Future<Uint8List> _generateInvoicePdf(
+      Map<String, dynamic> data,
+      PdfPageFormat format,
+      ) async {
+    final pdf = pw.Document();
+
+    final invoiceNumber =
+    (data['invoiceNumber'] ?? 'Invoice').toString();
+
+    final status =
+    (data['paymentStatus'] ?? 'Paid').toString();
+
+    final subtotal =
+    ((data['subtotal'] ?? 0) as num).toDouble();
+
+    final discount =
+    ((data['discount'] ?? 0) as num).toDouble();
+
+    final tax =
+    ((data['tax'] ?? 0) as num).toDouble();
+
+    final total =
+    ((data['total'] ?? 0) as num).toDouble();
+
+    final items =
+        (data['items'] as List?) ?? [];
+
+    final date =
+    _formatDate(data['createdAt']);
+
+    pdf.addPage(
+      pw.MultiPage(
+        pageFormat: format,
+        margin: const pw.EdgeInsets.all(32),
+        build: (context) {
+          return [
+            // ===================================================
+            // HEADER
+            // ===================================================
+
+            pw.Row(
+              mainAxisAlignment:
+              pw.MainAxisAlignment.spaceBetween,
+              crossAxisAlignment:
+              pw.CrossAxisAlignment.start,
+              children: [
+                pw.Column(
+                  crossAxisAlignment:
+                  pw.CrossAxisAlignment.start,
+                  children: [
+                    pw.Text(
+                      'StackFlow',
+                      style: pw.TextStyle(
+                        fontSize: 25,
+                        fontWeight:
+                        pw.FontWeight.bold,
+                        color: PdfColors.blue800,
+                      ),
+                    ),
+                    pw.SizedBox(height: 4),
+                    pw.Text(
+                      'Inventory & Billing System',
+                      style: const pw.TextStyle(
+                        fontSize: 10,
+                        color:
+                        PdfColors.grey600,
+                      ),
+                    ),
+                  ],
+                ),
+
+                pw.Column(
+                  crossAxisAlignment:
+                  pw.CrossAxisAlignment.end,
+                  children: [
+                    pw.Text(
+                      'INVOICE',
+                      style: pw.TextStyle(
+                        fontSize: 20,
+                        fontWeight:
+                        pw.FontWeight.bold,
+                      ),
+                    ),
+                    pw.SizedBox(height: 5),
+                    pw.Text(
+                      invoiceNumber,
+                      style: const pw.TextStyle(
+                        fontSize: 10,
+                      ),
+                    ),
+                    pw.SizedBox(height: 3),
+                    pw.Text(
+                      date,
+                      style: const pw.TextStyle(
+                        fontSize: 9,
+                        color:
+                        PdfColors.grey600,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+
+            pw.SizedBox(height: 22),
+
+            pw.Divider(
+              color: PdfColors.grey300,
+            ),
+
+            pw.SizedBox(height: 16),
+
+            // ===================================================
+            // STATUS
+            // ===================================================
+
+            pw.Row(
+              children: [
+                pw.Text(
+                  'Payment Status: ',
+                  style: pw.TextStyle(
+                    fontSize: 10,
+                    fontWeight:
+                    pw.FontWeight.bold,
+                  ),
+                ),
+                pw.Container(
+                  padding:
+                  const pw.EdgeInsets.symmetric(
+                    horizontal: 9,
+                    vertical: 4,
+                  ),
+                  decoration: pw.BoxDecoration(
+                    color: status.toLowerCase() ==
+                        'paid'
+                        ? PdfColors.green100
+                        : PdfColors.orange100,
+                    borderRadius:
+                    pw.BorderRadius.circular(10),
+                  ),
+                  child: pw.Text(
+                    status,
+                    style: pw.TextStyle(
+                      fontSize: 9,
+                      color:
+                      status.toLowerCase() ==
+                          'paid'
+                          ? PdfColors.green800
+                          : PdfColors.orange800,
+                      fontWeight:
+                      pw.FontWeight.bold,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+
+            pw.SizedBox(height: 22),
+
+            // ===================================================
+            // ITEMS TABLE
+            // ===================================================
+
+            pw.Text(
+              'Items',
+              style: pw.TextStyle(
+                fontSize: 14,
+                fontWeight:
+                pw.FontWeight.bold,
+              ),
+            ),
+
+            pw.SizedBox(height: 9),
+
+            pw.Table(
+              border: pw.TableBorder.all(
+                color: PdfColors.grey300,
+                width: 0.6,
+              ),
+              columnWidths: {
+                0: const pw.FlexColumnWidth(4),
+                1: const pw.FlexColumnWidth(1.2),
+                2: const pw.FlexColumnWidth(2),
+                3: const pw.FlexColumnWidth(2),
+              },
+              children: [
+                pw.TableRow(
+                  decoration:
+                  const pw.BoxDecoration(
+                    color: PdfColors.grey100,
+                  ),
+                  children: [
+                    _pdfCell(
+                      'Product',
+                      bold: true,
+                    ),
+                    _pdfCell(
+                      'Qty',
+                      bold: true,
+                      align:
+                      pw.TextAlign.center,
+                    ),
+                    _pdfCell(
+                      'Price',
+                      bold: true,
+                      align:
+                      pw.TextAlign.right,
+                    ),
+                    _pdfCell(
+                      'Total',
+                      bold: true,
+                      align:
+                      pw.TextAlign.right,
+                    ),
+                  ],
+                ),
+
+                ...items.map(
+                      (item) {
+                    final itemMap =
+                    Map<String, dynamic>.from(
+                      item as Map,
+                    );
+
+                    final name =
+                    (itemMap['name'] ??
+                        'Product')
+                        .toString();
+
+                    final price =
+                    ((itemMap['price'] ?? 0)
+                    as num)
+                        .toDouble();
+
+                    final quantity =
+                    ((itemMap['quantity'] ?? 1)
+                    as num)
+                        .toDouble();
+
+                    final itemTotal =
+                    ((itemMap['total'] ?? 0)
+                    as num)
+                        .toDouble();
+
+                    return pw.TableRow(
+                      children: [
+                        _pdfCell(name),
+                        _pdfCell(
+                          quantity % 1 == 0
+                              ? quantity
+                              .toInt()
+                              .toString()
+                              : quantity
+                              .toString(),
+                          align:
+                          pw.TextAlign.center,
+                        ),
+                        _pdfCell(
+                          formatCurrency(price),
+                          align:
+                          pw.TextAlign.right,
+                        ),
+                        _pdfCell(
+                          formatCurrency(itemTotal),
+                          align:
+                          pw.TextAlign.right,
+                        ),
+                      ],
+                    );
+                  },
+                ),
+              ],
+            ),
+
+            pw.SizedBox(height: 20),
+
+            // ===================================================
+            // TOTALS
+            // ===================================================
+
+            pw.Align(
+              alignment:
+              pw.Alignment.centerRight,
+              child: pw.Container(
+                width: 260,
+                padding:
+                const pw.EdgeInsets.all(14),
+                decoration: pw.BoxDecoration(
+                  border: pw.Border.all(
+                    color: PdfColors.grey300,
+                  ),
+                  borderRadius:
+                  pw.BorderRadius.circular(8),
+                ),
+                child: pw.Column(
+                  children: [
+                    _pdfTotalRow(
+                      'Subtotal',
+                      formatCurrency(subtotal),
+                    ),
+
+                    pw.SizedBox(height: 7),
+
+                    _pdfTotalRow(
+                      'Discount',
+                      discount > 0
+                          ? '-${formatCurrency(discount)}'
+                          : formatCurrency(0),
+                    ),
+
+                    pw.SizedBox(height: 7),
+
+                    _pdfTotalRow(
+                      'Tax',
+                      formatCurrency(tax),
+                    ),
+
+                    pw.SizedBox(height: 8),
+
+                    pw.Divider(
+                      color: PdfColors.grey300,
+                    ),
+
+                    pw.SizedBox(height: 5),
+
+                    _pdfTotalRow(
+                      'Total',
+                      formatCurrency(total),
+                      bold: true,
+                    ),
+                  ],
+                ),
+              ),
+            ),
+
+            pw.SizedBox(height: 30),
+
+            // ===================================================
+            // FOOTER
+            // ===================================================
+
+            pw.Center(
+              child: pw.Text(
+                'Thank you for your business.',
+                style: const pw.TextStyle(
+                  fontSize: 10,
+                  color: PdfColors.grey600,
+                ),
+              ),
+            ),
+
+            pw.SizedBox(height: 5),
+
+            pw.Center(
+              child: pw.Text(
+                'Generated by StackFlow',
+                style: const pw.TextStyle(
+                  fontSize: 8,
+                  color: PdfColors.grey500,
+                ),
+              ),
+            ),
+          ];
+        },
+      ),
+    );
+
+    return pdf.save();
+  }
+
+  // =============================================================
+  // PDF TABLE CELL
+  // =============================================================
+
+  pw.Widget _pdfCell(
+      String text, {
+        bool bold = false,
+        pw.TextAlign align = pw.TextAlign.left,
+      }) {
+    return pw.Padding(
+      padding: const pw.EdgeInsets.all(8),
+      child: pw.Text(
+        text,
+        textAlign: align,
+        style: pw.TextStyle(
+          fontSize: 9,
+          fontWeight:
+          bold ? pw.FontWeight.bold : null,
+        ),
+      ),
+    );
+  }
+
+  // =============================================================
+  // PDF TOTAL ROW
+  // =============================================================
+
+  pw.Widget _pdfTotalRow(
+      String title,
+      String value, {
+        bool bold = false,
+      }) {
+    return pw.Row(
+      children: [
+        pw.Expanded(
+          child: pw.Text(
+            title,
+            style: pw.TextStyle(
+              fontSize: bold ? 11 : 9,
+              fontWeight:
+              bold ? pw.FontWeight.bold : null,
+            ),
           ),
         ),
-      );
+        pw.Text(
+          value,
+          style: pw.TextStyle(
+            fontSize: bold ? 12 : 9,
+            fontWeight:
+            bold ? pw.FontWeight.bold : null,
+          ),
+        ),
+      ],
+    );
   }
+
+  // =============================================================
+  // BUILD
+  // =============================================================
 
   @override
   Widget build(BuildContext context) {
@@ -652,10 +1281,46 @@ class InvoiceDetailsScreen extends StatelessWidget {
 
         actions: [
           IconButton(
-            onPressed: () {
-              _showPrintMessage(context);
+            onPressed: _pdfBusy
+                ? null
+                : () async {
+              final snapshot =
+              await FirebaseService.getInvoice(
+                widget.invoiceId,
+              );
+
+              if (!mounted) {
+                return;
+              }
+
+              if (!snapshot.exists ||
+                  snapshot.data() == null) {
+                ScaffoldMessenger.of(context)
+                    .showSnackBar(
+                  const SnackBar(
+                    content: Text(
+                      'Invoice not found.',
+                    ),
+                  ),
+                );
+                return;
+              }
+
+              await _showPdfOptions(
+                context,
+                snapshot.data()!,
+              );
             },
-            icon: const Icon(
+            icon: _pdfBusy
+                ? const SizedBox(
+              width: 20,
+              height: 20,
+              child:
+              CircularProgressIndicator(
+                strokeWidth: 2,
+              ),
+            )
+                : const Icon(
               Icons.print_outlined,
             ),
             tooltip: 'Print invoice',
@@ -663,10 +1328,11 @@ class InvoiceDetailsScreen extends StatelessWidget {
           const SizedBox(width: 4),
         ],
       ),
+
       body: FutureBuilder<
           DocumentSnapshot<Map<String, dynamic>>>(
         future: FirebaseService.getInvoice(
-          invoiceId,
+          widget.invoiceId,
         ),
         builder: (context, snapshot) {
           if (snapshot.connectionState ==
@@ -797,9 +1463,13 @@ class InvoiceDetailsScreen extends StatelessWidget {
                       decoration: BoxDecoration(
                         color: isPaid
                             ? StackFlowColors.green
-                            .withValues(alpha: 0.10)
+                            .withValues(
+                          alpha: 0.10,
+                        )
                             : StackFlowColors.orange
-                            .withValues(alpha: 0.10),
+                            .withValues(
+                          alpha: 0.10,
+                        ),
                         borderRadius:
                         BorderRadius.circular(20),
                       ),
@@ -1028,15 +1698,31 @@ class InvoiceDetailsScreen extends StatelessWidget {
               // =================================================
 
               OutlinedButton.icon(
-                onPressed: () {
-                  _showPrintMessage(context);
+                onPressed: _pdfBusy
+                    ? null
+                    : () async {
+                  await _showPdfOptions(
+                    context,
+                    data,
+                  );
                 },
-                icon: const Icon(
+                icon: _pdfBusy
+                    ? const SizedBox(
+                  width: 18,
+                  height: 18,
+                  child:
+                  CircularProgressIndicator(
+                    strokeWidth: 2,
+                  ),
+                )
+                    : const Icon(
                   Icons.print_outlined,
                   size: 20,
                 ),
-                label: const Text(
-                  'Print Invoice',
+                label: Text(
+                  _pdfBusy
+                      ? 'Preparing Invoice...'
+                      : 'Print Invoice',
                 ),
                 style: OutlinedButton.styleFrom(
                   minimumSize: const Size(

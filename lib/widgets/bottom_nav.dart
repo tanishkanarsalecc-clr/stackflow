@@ -11,6 +11,10 @@ class BottomNav extends StatelessWidget {
     required this.selectedIndex,
   });
 
+  // ================================================================
+  // NAVIGATION
+  // ================================================================
+
   void _navigate(
       BuildContext context,
       int index,
@@ -21,9 +25,10 @@ class BottomNav extends StatelessWidget {
 
     switch (index) {
       case 0:
-        Navigator.pushNamed(
+        Navigator.pushNamedAndRemoveUntil(
           context,
           AppRoutes.dashboard,
+              (route) => false,
         );
         break;
 
@@ -57,81 +62,156 @@ class BottomNav extends StatelessWidget {
     }
   }
 
+  // ================================================================
+  // BUILD
+  // ================================================================
+
   @override
   Widget build(BuildContext context) {
-    return Container(
-      height: 82,
-      decoration: BoxDecoration(
-        color: Colors.white,
-        border: const Border(
-          top: BorderSide(
-            color: StackFlowColors.border,
-          ),
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.05),
-            blurRadius: 15,
-            offset: const Offset(0, -3),
-          ),
-        ],
-      ),
+    /*
+     * IMPORTANT:
+     *
+     * Previously the navigation had:
+     *
+     *   Container(height: 82)
+     *       -> SafeArea
+     *
+     * This caused SafeArea's bottom padding to reduce the available
+     * height inside the 82px container.
+     *
+     * The New Bill button then became taller than the available
+     * space and Flutter showed:
+     *
+     *   BOTTOM OVERFLOWED BY 10.0 PIXELS
+     *
+     * Now SafeArea is OUTSIDE the fixed navigation content height.
+     * Therefore the phone's system bottom inset is added instead
+     * of taking space away from the navigation items.
+     */
+
+    return Material(
+      color: Colors.white,
+
       child: SafeArea(
         top: false,
-        child: Row(
-          children: [
-            Expanded(
-              child: _NavItem(
-                icon: Icons.home_outlined,
-                selectedIcon: Icons.home_rounded,
-                label: 'Home',
-                selected: selectedIndex == 0,
-                onTap: () => _navigate(context, 0),
+
+        child: Container(
+          height: 72,
+
+          decoration: BoxDecoration(
+            color: Colors.white,
+
+            border: const Border(
+              top: BorderSide(
+                color: StackFlowColors.border,
               ),
             ),
 
-            Expanded(
-              child: _NavItem(
-                icon: Icons.inventory_2_outlined,
-                selectedIcon: Icons.inventory_2_rounded,
-                label: 'Products',
-                selected: selectedIndex == 1,
-                onTap: () => _navigate(context, 1),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(
+                  alpha: 0.05,
+                ),
+                blurRadius: 15,
+                offset: const Offset(0, -3),
               ),
-            ),
+            ],
+          ),
 
-            Expanded(
-              child: _NewBillButton(
-                selected: selectedIndex == 2,
-                onTap: () => _navigate(context, 2),
-              ),
-            ),
+          child: Row(
+            children: [
+              // ======================================================
+              // HOME
+              // ======================================================
 
-            Expanded(
-              child: _NavItem(
-                icon: Icons.receipt_long_outlined,
-                selectedIcon: Icons.receipt_long_rounded,
-                label: 'Sales',
-                selected: selectedIndex == 3,
-                onTap: () => _navigate(context, 3),
+              Expanded(
+                child: _NavItem(
+                  icon: Icons.home_outlined,
+                  selectedIcon: Icons.home_rounded,
+                  label: 'Home',
+                  selected: selectedIndex == 0,
+                  onTap: () => _navigate(
+                    context,
+                    0,
+                  ),
+                ),
               ),
-            ),
 
-            Expanded(
-              child: _NavItem(
-                icon: Icons.more_horiz_rounded,
-                selectedIcon: Icons.more_horiz_rounded,
-                label: 'More',
-                selected: selectedIndex == 4,
-                onTap: () => _navigate(context, 4),
+              // ======================================================
+              // PRODUCTS
+              // ======================================================
+
+              Expanded(
+                child: _NavItem(
+                  icon: Icons.inventory_2_outlined,
+                  selectedIcon: Icons.inventory_2_rounded,
+                  label: 'Products',
+                  selected: selectedIndex == 1,
+                  onTap: () => _navigate(
+                    context,
+                    1,
+                  ),
+                ),
               ),
-            ),
-          ],
+
+              // ======================================================
+              // NEW BILL
+              // ======================================================
+
+              Expanded(
+                child: _NewBillButton(
+                  selected: selectedIndex == 2,
+                  onTap: () => _navigate(
+                    context,
+                    2,
+                  ),
+                ),
+              ),
+
+              // ======================================================
+              // SALES
+              // ======================================================
+
+              Expanded(
+                child: _NavItem(
+                  icon: Icons.receipt_long_outlined,
+                  selectedIcon: Icons.receipt_long_rounded,
+                  label: 'Sales',
+                  selected: selectedIndex == 3,
+                  onTap: () => _navigate(
+                    context,
+                    3,
+                  ),
+                ),
+              ),
+
+              // ======================================================
+              // MORE
+              // ======================================================
+
+              Expanded(
+                child: _NavItem(
+                  icon: Icons.more_horiz_rounded,
+                  selectedIcon: Icons.more_horiz_rounded,
+                  label: 'More',
+                  selected: selectedIndex == 4,
+                  onTap: () => _navigate(
+                    context,
+                    4,
+                  ),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
   }
 }
+
+// ==================================================================
+// NORMAL NAVIGATION ITEM
+// ==================================================================
 
 class _NavItem extends StatelessWidget {
   final IconData icon;
@@ -150,50 +230,88 @@ class _NavItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final color = selected
+    final Color color = selected
         ? StackFlowColors.primary
         : StackFlowColors.secondaryText;
 
-    return InkWell(
-      onTap: onTap,
-      child: SizedBox(
-        height: double.infinity,
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            AnimatedContainer(
-              duration: const Duration(milliseconds: 180),
-              width: selected ? 46 : 42,
-              height: 30,
-              decoration: BoxDecoration(
-                color: selected
-                    ? StackFlowColors.primary.withValues(alpha: 0.10)
-                    : Colors.transparent,
-                borderRadius: BorderRadius.circular(12),
+    return Material(
+      color: Colors.transparent,
+
+      child: InkWell(
+        onTap: onTap,
+
+        child: SizedBox(
+          height: 72,
+
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+
+            children: [
+              // ======================================================
+              // ICON CONTAINER
+              // ======================================================
+
+              AnimatedContainer(
+                duration: const Duration(
+                  milliseconds: 180,
+                ),
+
+                width: selected ? 46 : 42,
+                height: 30,
+
+                decoration: BoxDecoration(
+                  color: selected
+                      ? StackFlowColors.primary.withValues(
+                    alpha: 0.10,
+                  )
+                      : Colors.transparent,
+
+                  borderRadius: BorderRadius.circular(12),
+                ),
+
+                child: Icon(
+                  selected
+                      ? selectedIcon
+                      : icon,
+
+                  size: 21,
+                  color: color,
+                ),
               ),
-              child: Icon(
-                selected ? selectedIcon : icon,
-                size: 21,
-                color: color,
+
+              const SizedBox(height: 2),
+
+              // ======================================================
+              // LABEL
+              // ======================================================
+
+              Text(
+                label,
+
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+
+                style: TextStyle(
+                  fontSize: 10,
+
+                  fontWeight: selected
+                      ? FontWeight.w600
+                      : FontWeight.w500,
+
+                  color: color,
+                ),
               ),
-            ),
-            const SizedBox(height: 3),
-            Text(
-              label,
-              style: TextStyle(
-                fontSize: 10,
-                fontWeight: selected
-                    ? FontWeight.w600
-                    : FontWeight.w500,
-                color: color,
-              ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
   }
 }
+
+// ==================================================================
+// NEW BILL BUTTON
+// ==================================================================
 
 class _NewBillButton extends StatelessWidget {
   final bool selected;
@@ -206,56 +324,92 @@ class _NewBillButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(18),
-      child: SizedBox(
-        height: double.infinity,
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            AnimatedContainer(
-              duration: const Duration(milliseconds: 180),
-              width: 50,
-              height: 50,
-              decoration: BoxDecoration(
-                gradient: const LinearGradient(
-                  colors: [
-                    StackFlowColors.primary,
-                    StackFlowColors.primaryDark,
-                  ],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
+    return Material(
+      color: Colors.transparent,
+
+      child: InkWell(
+        onTap: onTap,
+
+        borderRadius: BorderRadius.circular(18),
+
+        child: SizedBox(
+          height: 72,
+
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+
+            children: [
+              // ======================================================
+              // FLOATING BUTTON
+              // ======================================================
+
+              AnimatedContainer(
+                duration: const Duration(
+                  milliseconds: 180,
                 ),
-                borderRadius: BorderRadius.circular(17),
-                boxShadow: [
-                  BoxShadow(
-                    color: StackFlowColors.primary.withValues(
-                      alpha: 0.25,
-                    ),
-                    blurRadius: 10,
-                    offset: const Offset(0, 4),
+
+                width: 48,
+                height: 48,
+
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(
+                    colors: [
+                      StackFlowColors.primary,
+                      StackFlowColors.primaryDark,
+                    ],
+
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
                   ),
-                ],
+
+                  borderRadius: BorderRadius.circular(16),
+
+                  boxShadow: [
+                    BoxShadow(
+                      color: StackFlowColors.primary.withValues(
+                        alpha: 0.25,
+                      ),
+
+                      blurRadius: 10,
+
+                      offset: const Offset(
+                        0,
+                        4,
+                      ),
+                    ),
+                  ],
+                ),
+
+                child: const Icon(
+                  Icons.add_rounded,
+                  color: Colors.white,
+                  size: 29,
+                ),
               ),
-              child: const Icon(
-                Icons.add_rounded,
-                color: Colors.white,
-                size: 30,
+
+              const SizedBox(height: 1),
+
+              // ======================================================
+              // LABEL
+              // ======================================================
+
+              Text(
+                'New Bill',
+
+                maxLines: 1,
+
+                style: TextStyle(
+                  fontSize: 10,
+
+                  fontWeight: selected
+                      ? FontWeight.bold
+                      : FontWeight.w600,
+
+                  color: StackFlowColors.primary,
+                ),
               ),
-            ),
-            const SizedBox(height: 3),
-            Text(
-              'New Bill',
-              style: TextStyle(
-                fontSize: 10,
-                fontWeight: selected
-                    ? FontWeight.bold
-                    : FontWeight.w600,
-                color: StackFlowColors.primary,
-              ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );

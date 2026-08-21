@@ -4,9 +4,23 @@ import '../core/routes.dart';
 import '../core/theme.dart';
 import '../widgets/bottom_nav.dart';
 import '../widgets/stat_card.dart';
+import 'suppliers_screen.dart';
 
 class DashboardScreen extends StatelessWidget {
   const DashboardScreen({super.key});
+
+  // ============================================================
+  // OPEN SUPPLIERS
+  // ============================================================
+
+  void _openSuppliers(BuildContext context) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => const SuppliersScreen(),
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -42,15 +56,22 @@ class DashboardScreen extends StatelessWidget {
         ],
       ),
 
+      // ==========================================================
+      // BODY
+      // ==========================================================
+
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
         child: Column(
-          crossAxisAlignment:
-          CrossAxisAlignment.start,
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _RevenueCard(),
+            const _RevenueCard(),
 
             const SizedBox(height: 15),
+
+            // ====================================================
+            // STAT CARDS
+            // ====================================================
 
             GridView.count(
               crossAxisCount: 2,
@@ -60,37 +81,50 @@ class DashboardScreen extends StatelessWidget {
               mainAxisSpacing: 12,
               crossAxisSpacing: 12,
               childAspectRatio: 1.65,
-              children: const [
-                StatCard(
+              children: [
+                const StatCard(
                   title: 'Products',
                   value: '1,240',
                   icon: Icons.inventory_2_outlined,
                 ),
-                StatCard(
+
+                const StatCard(
                   title: 'Low Stock',
                   value: '23',
                   icon: Icons.warning_amber_outlined,
-                  iconColor:
-                  StackFlowColors.orange,
+                  iconColor: StackFlowColors.orange,
                 ),
-                StatCard(
+
+                const StatCard(
                   title: 'Customers',
                   value: '568',
                   icon: Icons.people_outline,
-                  iconColor:
-                  StackFlowColors.green,
+                  iconColor: StackFlowColors.green,
                 ),
-                StatCard(
-                  title: 'Suppliers',
-                  value: '45',
-                  icon: Icons.local_shipping_outlined,
-                  iconColor:
-                  StackFlowColors.blue,
+
+                // ==================================================
+                // SUPPLIERS - NOW TAPPABLE
+                // ==================================================
+
+                GestureDetector(
+                  onTap: () {
+                    _openSuppliers(context);
+                  },
+                  child: const StatCard(
+                    title: 'Suppliers',
+                    value: '45',
+                    icon: Icons.local_shipping_outlined,
+                    iconColor: StackFlowColors.blue,
+                  ),
                 ),
               ],
             ),
 
             const SizedBox(height: 24),
+
+            // ====================================================
+            // QUICK ACTIONS
+            // ====================================================
 
             const Text(
               'Quick Actions',
@@ -122,9 +156,9 @@ class DashboardScreen extends StatelessWidget {
                     );
                   },
                 ),
+
                 _Action(
-                  icon:
-                  Icons.receipt_long_outlined,
+                  icon: Icons.receipt_long_outlined,
                   title: 'New Bill',
                   onTap: () {
                     Navigator.pushNamed(
@@ -133,6 +167,7 @@ class DashboardScreen extends StatelessWidget {
                     );
                   },
                 ),
+
                 _Action(
                   icon: Icons.people_outline,
                   title: 'Customers',
@@ -143,6 +178,7 @@ class DashboardScreen extends StatelessWidget {
                     );
                   },
                 ),
+
                 _Action(
                   icon: Icons.bar_chart_outlined,
                   title: 'Reports',
@@ -155,17 +191,30 @@ class DashboardScreen extends StatelessWidget {
                 ),
               ],
             ),
+
+            const SizedBox(height: 20),
           ],
         ),
       ),
 
-      bottomNavigationBar:
-      const BottomNav(selectedIndex: 0),
+      // ==========================================================
+      // BOTTOM NAVIGATION
+      // ==========================================================
+
+      bottomNavigationBar: const BottomNav(
+        selectedIndex: 0,
+      ),
     );
   }
 }
 
+// ================================================================
+// REVENUE CARD
+// ================================================================
+
 class _RevenueCard extends StatelessWidget {
+  const _RevenueCard();
+
   @override
   Widget build(BuildContext context) {
     return Container(
@@ -194,7 +243,9 @@ class _RevenueCard extends StatelessWidget {
                     fontSize: 13,
                   ),
                 ),
+
                 SizedBox(height: 6),
+
                 Text(
                   '₹ 1,25,430',
                   style: TextStyle(
@@ -203,7 +254,9 @@ class _RevenueCard extends StatelessWidget {
                     fontWeight: FontWeight.bold,
                   ),
                 ),
+
                 SizedBox(height: 5),
+
                 Text(
                   '+ 18.6% from last month',
                   style: TextStyle(
@@ -214,6 +267,7 @@ class _RevenueCard extends StatelessWidget {
               ],
             ),
           ),
+
           Container(
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
@@ -232,6 +286,10 @@ class _RevenueCard extends StatelessWidget {
     );
   }
 }
+
+// ================================================================
+// QUICK ACTION
+// ================================================================
 
 class _Action extends StatelessWidget {
   final IconData icon;
@@ -267,7 +325,9 @@ class _Action extends StatelessWidget {
               color: StackFlowColors.primary,
               size: 22,
             ),
+
             const SizedBox(width: 9),
+
             Expanded(
               child: Text(
                 title,
